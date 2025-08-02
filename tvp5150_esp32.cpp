@@ -119,6 +119,32 @@ bool tvp5150_init(uint8_t sda_pin, uint8_t scl_pin) {
         return false;
     }
     
+    // Force correct output format (register 0x15) - this is critical!
+    Serial.println("Fixing output format register 0x15...");
+    
+    // Try multiple times to ensure it sticks
+    bool register_fixed = false;
+    for (int attempt = 0; attempt < 5; attempt++) {
+        if (!write_register_with_retry(tvp5150_addr, 0x15, 0x01)) {
+            Serial.printf("Failed to write register 0x15 on attempt %d\n", attempt + 1);
+        } else {
+            delay(10);
+            uint8_t output_format = read_register(tvp5150_addr, 0x15);
+            Serial.printf("Attempt %d: Register 0x15 = 0x%02X\n", attempt + 1, output_format);
+            if (output_format == 0x01) {
+                Serial.println("✓ Register 0x15 successfully set to 0x01!");
+                register_fixed = true;
+                break;
+            }
+        }
+        delay(50);
+    }
+    
+    if (!register_fixed) {
+        Serial.println("WARNING: Could not set register 0x15 to 0x01!");
+        Serial.println("This may cause BT656 output issues.");
+    }
+    
     Serial.println("TVP5150 initialized successfully");
     return true;
 }
@@ -293,6 +319,56 @@ bool tvp5150_is_video_present(void) {
     return (status1 & 0x10) != 0;
 }
 
+// Function to check camera connection and signal
+void tvp5150_check_camera_connection(void) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.println("=== CAMERA CONNECTION CHECK ===");
+    
+    // Check device ID
+    uint8_t device_id = read_register(tvp5150_addr, 0x00);
+    Serial.printf("Device ID: 0x%02X\n", device_id);
+    
+    // Check video status register
+    uint8_t video_status = read_register(tvp5150_addr, 0x00);
+    Serial.printf("Video Status: 0x%02X\n", video_status);
+    
+    // Check if video lock is present
+    bool video_lock = (video_status & 0x01) != 0;
+    Serial.printf("Video Lock: %s\n", video_lock ? "YES" : "NO");
+    
+    // Check if sync is detected
+    bool sync_detected = (video_status & 0x02) != 0;
+    Serial.printf("Sync Detected: %s\n", sync_detected ? "YES" : "NO");
+    
+    // Check if field is detected
+    bool field_detected = (video_status & 0x04) != 0;
+    Serial.printf("Field Detected: %s\n", field_detected ? "YES" : "NO");
+    
+    // Check input selection
+    uint8_t input_sel = read_register(tvp5150_addr, 0x0F);
+    Serial.printf("Input Selection: 0x%02X\n", input_sel);
+    
+    // Check video standard
+    uint8_t video_std = read_register(tvp5150_addr, 0x0D);
+    Serial.printf("Video Standard: 0x%02X\n", video_std);
+    
+    if (!video_lock && !sync_detected) {
+        Serial.println("⚠️  NO VIDEO SIGNAL DETECTED!");
+        Serial.println("Check:");
+        Serial.println("1. Camera power (5-24V)");
+        Serial.println("2. Composite video cable connection");
+        Serial.println("3. Camera is powered on and outputting video");
+        Serial.println("4. Correct input pin on TVP5150");
+    } else if (video_lock) {
+        Serial.println("✓ VIDEO SIGNAL DETECTED!");
+    } else {
+        Serial.println("⚠️  PARTIAL SIGNAL - sync detected but no video lock");
+    }
+    
+    Serial.println("================================");
+}
+
 void tvp5150_set_brightness(uint8_t brightness) {
     uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
     write_register_with_retry(tvp5150_addr, TVP5150_REG_BRIGHTNESS, brightness);
@@ -306,4 +382,235 @@ void tvp5150_set_contrast(uint8_t contrast) {
 void tvp5150_set_saturation(uint8_t saturation) {
     uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
     write_register_with_retry(tvp5150_addr, TVP5150_REG_SATURATION, saturation);
+}
+
+// Function to read and display critical TVP5150 registers
+void tvp5150_print_critical_registers(void) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.println("=== TVP5150 CRITICAL REGISTERS ===");
+    Serial.println("Reg | Expected | Actual | Status");
+    Serial.println("----|----------|--------|--------");
+    
+    // Critical registers from Verilog implementation
+    const uint8_t critical_regs[][2] = {
+        {0x0A, 0x80}, // Status register
+        {0x0B, 0x00}, // Video standard
+        {0x0C, 0x80}, // Output control (PARALLEL OUTPUT!)
+        {0x0D, 0x47}, // PAL configuration
+        {0x0E, 0x00}, // 
+        {0x0F, 0x02}, // Input selection (CRITICAL!)
+        {0x15, 0x01}, // Output format
+    };
+    
+    for (int i = 0; i < sizeof(critical_regs)/sizeof(critical_regs[0]); i++) {
+        uint8_t reg = critical_regs[i][0];
+        uint8_t expected = critical_regs[i][1];
+        uint8_t actual = read_register(tvp5150_addr, reg);
+        
+        Serial.printf("0x%02X | 0x%02X      | 0x%02X    | %s\n", 
+                     reg, expected, actual, (actual == expected) ? "✓" : "✗");
+    }
+    
+    Serial.println("=================================");
+}
+
+// Function to force configure TVP5150 with exact Verilog values
+bool tvp5150_force_configure_verilog(void) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.println("=== FORCE CONFIGURING TVP5150 (Verilog Values) ===");
+    
+    // Exact values from working Verilog implementation
+    const uint8_t verilog_config[][2] = {
+        {0x0A, 0x80}, // Status register
+        {0x0B, 0x00}, // Video standard
+        {0x0C, 0x80}, // Output control (ENABLE PARALLEL!)
+        {0x0D, 0x47}, // PAL configuration
+        {0x0E, 0x00}, // 
+        {0x0F, 0x02}, // Input selection (AIN1)
+        {0x11, 0x04}, // 
+        {0x12, 0x00}, // 
+        {0x13, 0x04}, // 
+        {0x14, 0x00}, // 
+        {0x15, 0x01}, // Output format (BT656)
+        {0x16, 0x80}, // 
+        {0x18, 0x00}, // 
+        {0x19, 0x00}, // 
+        {0x1A, 0x0C}, // 
+        {0x1B, 0x14}, // 
+        {0x1C, 0x00}, // 
+        {0x1D, 0x00}, // 
+        {0x1E, 0x00}, // 
+        {0x28, 0x00}, // 
+    };
+    
+    for (int i = 0; i < sizeof(verilog_config)/sizeof(verilog_config[0]); i++) {
+        uint8_t reg = verilog_config[i][0];
+        uint8_t value = verilog_config[i][1];
+        
+        Serial.printf("Writing 0x%02X to register 0x%02X...\n", value, reg);
+        
+        if (!write_register_with_retry(tvp5150_addr, reg, value)) {
+            Serial.printf("FAILED to write register 0x%02X\n", reg);
+            return false;
+        }
+        delay(5); // Longer delay for critical registers
+    }
+    
+    Serial.println("Verilog configuration applied successfully!");
+    
+    // Force register 0x15 multiple times to ensure it sticks
+    Serial.println("Forcing register 0x15 multiple times...");
+    for (int attempt = 0; attempt < 5; attempt++) {
+        if (!write_register_with_retry(tvp5150_addr, 0x15, 0x01)) {
+            Serial.printf("Failed to write register 0x15 on attempt %d\n", attempt + 1);
+        } else {
+            delay(10);
+            uint8_t readback = read_register(tvp5150_addr, 0x15);
+            Serial.printf("Attempt %d: Register 0x15 = 0x%02X\n", attempt + 1, readback);
+            if (readback == 0x01) {
+                Serial.println("✓ Register 0x15 successfully set to 0x01!");
+                break;
+            }
+        }
+        delay(50);
+    }
+    
+    return true;
+}
+
+// Public wrapper functions for register access
+uint8_t tvp5150_read_register(uint8_t reg) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    return read_register(tvp5150_addr, reg);
+}
+
+bool tvp5150_write_register(uint8_t reg, uint8_t data) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    return write_register_with_retry(tvp5150_addr, reg, data);
+}
+
+// Function to test different input selections
+bool tvp5150_test_input_selection(uint8_t input_sel) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.printf("Testing input selection: 0x%02X\n", input_sel);
+    
+    // Write the input selection
+    if (!write_register_with_retry(tvp5150_addr, 0x0F, input_sel)) {
+        Serial.println("Failed to write input selection");
+        return false;
+    }
+    
+    delay(100); // Give TVP5150 time to switch
+    
+    // Read back to verify
+    uint8_t readback = read_register(tvp5150_addr, 0x0F);
+    if (readback == input_sel) {
+        Serial.printf("✓ Input selection set to 0x%02X\n", input_sel);
+        return true;
+    } else {
+        Serial.printf("✗ Input selection failed: wrote 0x%02X, read 0x%02X\n", input_sel, readback);
+        return false;
+    }
+}
+
+// Function to reset TVP5150 to known state
+bool tvp5150_reset_to_defaults(void) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.println("Resetting TVP5150 to default state...");
+    
+    // Reset all critical registers to default values
+    const uint8_t default_config[][2] = {
+        {0x0A, 0x80}, // Status
+        {0x0B, 0x00}, // Video standard
+        {0x0C, 0x80}, // Output control (parallel enabled)
+        {0x0D, 0x47}, // PAL configuration
+        {0x0E, 0x00}, // 
+        {0x0F, 0x02}, // Input selection (AIN1)
+        {0x15, 0x01}, // Output format (BT656)
+    };
+    
+    for (int i = 0; i < sizeof(default_config)/sizeof(default_config[0]); i++) {
+        if (!write_register_with_retry(tvp5150_addr, default_config[i][0], default_config[i][1])) {
+            Serial.printf("Failed to reset register 0x%02X\n", default_config[i][0]);
+            return false;
+        }
+        delay(10);
+    }
+    
+    Serial.println("✓ TVP5150 reset to defaults");
+    return true;
+}
+
+// Function to auto-detect and configure video standard (PAL/NTSC)
+bool tvp5150_auto_detect_video_standard(void) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.println("=== AUTO-DETECTING VIDEO STANDARD ===");
+    Serial.println("Testing PAL and NTSC configurations...");
+    
+    // Test PAL configuration first
+    Serial.println("\n--- Testing PAL Configuration ---");
+    if (!write_register_with_retry(tvp5150_addr, 0x0D, 0x47)) { // PAL
+        Serial.println("Failed to set PAL configuration");
+        return false;
+    }
+    delay(500); // Wait for signal to stabilize
+    
+    bool pal_video = tvp5150_is_video_present();
+    Serial.printf("PAL video detected: %s\n", pal_video ? "YES" : "NO");
+    
+    if (pal_video) {
+        Serial.println("✓ PAL VIDEO STANDARD DETECTED!");
+        return true;
+    }
+    
+    // Test NTSC configuration
+    Serial.println("\n--- Testing NTSC Configuration ---");
+    if (!write_register_with_retry(tvp5150_addr, 0x0D, 0x40)) { // NTSC
+        Serial.println("Failed to set NTSC configuration");
+        return false;
+    }
+    delay(500); // Wait for signal to stabilize
+    
+    bool ntsc_video = tvp5150_is_video_present();
+    Serial.printf("NTSC video detected: %s\n", ntsc_video ? "YES" : "NO");
+    
+    if (ntsc_video) {
+        Serial.println("✓ NTSC VIDEO STANDARD DETECTED!");
+        return true;
+    }
+    
+    Serial.println("✗ No video standard detected");
+    return false;
+}
+
+// Function to configure for specific video standard
+bool tvp5150_configure_video_standard(bool is_pal) {
+    uint8_t tvp5150_addr = TVP5150_I2C_ADDR_PRIMARY;
+    
+    Serial.printf("Configuring for %s video standard...\n", is_pal ? "PAL" : "NTSC");
+    
+    // Set video standard configuration
+    uint8_t video_std_value = is_pal ? 0x47 : 0x40;
+    if (!write_register_with_retry(tvp5150_addr, 0x0D, video_std_value)) {
+        Serial.printf("Failed to set %s configuration\n", is_pal ? "PAL" : "NTSC");
+        return false;
+    }
+    
+    delay(100);
+    
+    // Verify configuration
+    uint8_t readback = read_register(tvp5150_addr, 0x0D);
+    if (readback == video_std_value) {
+        Serial.printf("✓ %s configuration applied successfully\n", is_pal ? "PAL" : "NTSC");
+        return true;
+    } else {
+        Serial.printf("✗ %s configuration failed: wrote 0x%02X, read 0x%02X\n", 
+                     is_pal ? "PAL" : "NTSC", video_std_value, readback);
+        return false;
+    }
 } 

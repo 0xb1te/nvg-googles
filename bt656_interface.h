@@ -16,9 +16,8 @@
 #define BT656_BUFFER_SIZE          1024     // Circular buffer size
 #define BT656_MAX_SAMPLES_PER_ISR  8        // Max samples to process per ISR
 
-// Pin definitions (from pin_config.h)
-extern const uint8_t BT656_DATA_PINS[8];    // D0-D7 pins
-extern const uint8_t BT656_PCLK_PIN;        // Pixel clock pin
+// Pin definitions - use TVP5150 pin constants directly from pin_config.h
+// No need for redundant external declarations
 
 // ============================================================================
 // Data Structures
@@ -73,9 +72,9 @@ typedef struct {
 // Core interface functions
 bool bt656_interface_init(bt656_interface_t* interface, const bt656_interface_config_t* config);
 void bt656_interface_deinit(bt656_interface_t* interface);
-bool bt656_interface_start(bt656_interface_t* interface);
 void bt656_interface_stop(bt656_interface_t* interface);
 bool bt656_interface_is_running(bt656_interface_t* interface);
+// Note: bt656_interface_start() was removed - functionality merged into bt656_interface_init()
 
 // Configuration functions
 void bt656_interface_set_config(bt656_interface_t* interface, const bt656_interface_config_t* config);
@@ -87,6 +86,9 @@ void bt656_interface_set_error_callback(bt656_interface_t* interface, void (*cal
 uint32_t bt656_interface_read_data(bt656_interface_t* interface, uint8_t* buffer, uint32_t max_count);
 uint32_t bt656_interface_get_available_data(bt656_interface_t* interface);
 void bt656_interface_process_buffer(bt656_interface_t* interface);
+
+// Polling mode functions
+void bt656_interface_poll_data(bt656_interface_t* interface);
 
 // Status and statistics functions
 bt656_interface_stats_t bt656_interface_get_stats(bt656_interface_t* interface);
@@ -100,11 +102,20 @@ void IRAM_ATTR bt656_pclk_isr(void* arg);
 bool bt656_interface_validate_pins(const bt656_interface_config_t* config);
 void bt656_interface_print_config(const bt656_interface_config_t* config);
 
+// Safety functions
+bool bt656_interface_verify_gpio_isr_service();
+
+// Debug functions for raw data capture
+void bt656_interface_print_raw_data(bt656_interface_t* interface, uint32_t sample_count);
+void bt656_interface_print_pin_states(bt656_interface_t* interface);
+void bt656_interface_look_for_verilog_patterns(bt656_interface_t* interface, uint32_t sample_count);
+
 // ============================================================================
 // Default Configuration
 // ============================================================================
 
 // Default BT656 interface configuration
+// Uses TVP5150 pin constants from pin_config.h (single source of truth)
 static const bt656_interface_config_t BT656_DEFAULT_CONFIG = {
     .data_pins = {TVP5150_D0_PIN, TVP5150_D1_PIN, TVP5150_D2_PIN, TVP5150_D3_PIN,
                   TVP5150_D4_PIN, TVP5150_D5_PIN, TVP5150_D6_PIN, TVP5150_D7_PIN},

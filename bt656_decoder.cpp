@@ -5,8 +5,8 @@
 // Internal Helper Functions
 // ============================================================================
 
-// Detect timing reference pattern (FF 00 00)
-static bool detect_timing_reference(bt656_decoder_t* decoder, uint8_t data) {
+// Detect timing reference pattern (FF 00 00) - optimized version
+static inline bool IRAM_ATTR detect_timing_reference(bt656_decoder_t* decoder, uint8_t data) {
     switch(decoder->state) {
         case BT656_STATE_IDLE:
             if (data == BT656_TR_MARKER_FF) {
@@ -24,15 +24,11 @@ static bool detect_timing_reference(bt656_decoder_t* decoder, uint8_t data) {
             
         case BT656_STATE_FF00:
             if (data == BT656_TR_MARKER_00) {
-                decoder->state = BT656_STATE_FF0000;
-                return true; // Timing reference found
+                decoder->state = BT656_STATE_CONTROL_BYTE;
+                return true; // Timing reference found - skip FF0000 state
             } else {
                 decoder->state = BT656_STATE_IDLE;
             }
-            break;
-            
-        case BT656_STATE_FF0000:
-            decoder->state = BT656_STATE_CONTROL_BYTE;
             break;
             
         default:
@@ -358,7 +354,6 @@ const char* bt656_state_to_string(bt656_state_t state) {
         case BT656_STATE_IDLE: return "IDLE";
         case BT656_STATE_FF: return "FF";
         case BT656_STATE_FF00: return "FF00";
-        case BT656_STATE_FF0000: return "FF0000";
         case BT656_STATE_CONTROL_BYTE: return "CONTROL_BYTE";
         case BT656_STATE_ACTIVE_VIDEO: return "ACTIVE_VIDEO";
         default: return "UNKNOWN";

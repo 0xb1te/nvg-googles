@@ -11,6 +11,10 @@
 // ============================================================================
 // ESP32 WROOM-32 to TVP5150 Pin Mapping
 // ============================================================================
+// 
+// SINGLE SOURCE OF TRUTH: All pin definitions are centralized here
+// Other modules should use these constants, not define their own
+// ============================================================================
 
 // I2C Interface (for configuration and status)
 #define I2C_SDA_PIN 21   // ESP32 D21 → TVP5150 Pin 4 (SDA)
@@ -28,7 +32,7 @@
 #define TVP5150_D7_PIN 26   // ESP32 D26 → TVP5150 Pin 9  (D7)
 
 // Control Signals
-#define TVP5150_PCLK_PIN 27  // ESP32 D27 → TVP5150 Pin 7 (PCLK)
+#define TVP5150_PCLK_PIN 5    // ESP32 D5  → TVP5150 Pin 7 (PCLK) - Valid interrupt pin
 #define TVP5150_XCLK_PIN 4   // ESP32 D4  → TVP5150 Pin 8 (XCLK)
 
 // Note: VSYNC and HREF are not in your mapping - they may be internal to TVP5150
@@ -127,7 +131,7 @@ static void print_pin_configuration() {
     Serial.printf("D7: GPIO %d → TVP5150 Pin 9  (D7)\n", TVP5150_D7_PIN);
     Serial.println();
     Serial.println("Control Signals:");
-    Serial.printf("PCLK: GPIO %d → TVP5150 Pin 7 (PCLK)\n", TVP5150_PCLK_PIN);
+    Serial.printf("PCLK: GPIO %d → TVP5150 Pin 7 (PCLK) - Valid interrupt pin\n", TVP5150_PCLK_PIN);
     Serial.printf("XCLK: GPIO %d → TVP5150 Pin 8 (XCLK)\n", TVP5150_XCLK_PIN);
     
     if (!is_pin_connected(TVP5150_VSYNC_PIN)) {

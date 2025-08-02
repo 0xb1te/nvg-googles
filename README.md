@@ -110,8 +110,7 @@ bt656_interface_init(&interface, &interface_config);
 // Connect decoder to interface
 bt656_interface_set_decoder(&interface, &decoder);
 
-// Start capture
-bt656_interface_start(&interface);
+// Interface is now ready to capture data (interrupts automatically enabled)
 ```
 
 ### Frame Buffer Management
@@ -299,7 +298,7 @@ void bt656_decoder_reset(bt656_decoder_t* decoder);
 
 // BT656 Interface
 bool bt656_interface_init(bt656_interface_t* interface, const bt656_interface_config_t* config);
-bool bt656_interface_start(bt656_interface_t* interface);
+// bt656_interface_start() REMOVED - functionality merged into bt656_interface_init()
 void bt656_interface_stop(bt656_interface_t* interface);
 
 // Frame Buffer

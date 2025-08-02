@@ -37,7 +37,6 @@ typedef enum {
     BT656_STATE_IDLE,              // Waiting for timing reference
     BT656_STATE_FF,                // Found first FF
     BT656_STATE_FF00,              // Found FF 00
-    BT656_STATE_FF0000,            // Found FF 00 00
     BT656_STATE_CONTROL_BYTE,      // Processing control byte
     BT656_STATE_ACTIVE_VIDEO       // Processing active video data
 } bt656_state_t;

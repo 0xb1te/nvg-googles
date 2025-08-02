@@ -34,46 +34,8 @@ static bool init_gpio_pins(const tvp5150_pins_t* pins) {
         return false;
     }
     
-    // Configure data pins as inputs
-    if (is_pin_connected(pins->d0_pin)) {
-        pinMode(pins->d0_pin, INPUT);
-        Serial.printf("D0 pin configured: GPIO %d\n", pins->d0_pin);
-    }
-    
-    if (is_pin_connected(pins->d1_pin)) {
-        pinMode(pins->d1_pin, INPUT);
-        Serial.printf("D1 pin configured: GPIO %d\n", pins->d1_pin);
-    }
-    
-    if (is_pin_connected(pins->d2_pin)) {
-        pinMode(pins->d2_pin, INPUT);
-        Serial.printf("D2 pin configured: GPIO %d\n", pins->d2_pin);
-    }
-    
-    if (is_pin_connected(pins->d3_pin)) {
-        pinMode(pins->d3_pin, INPUT);
-        Serial.printf("D3 pin configured: GPIO %d\n", pins->d3_pin);
-    }
-    
-    if (is_pin_connected(pins->d4_pin)) {
-        pinMode(pins->d4_pin, INPUT);
-        Serial.printf("D4 pin configured: GPIO %d\n", pins->d4_pin);
-    }
-    
-    if (is_pin_connected(pins->d5_pin)) {
-        pinMode(pins->d5_pin, INPUT);
-        Serial.printf("D5 pin configured: GPIO %d\n", pins->d5_pin);
-    }
-    
-    if (is_pin_connected(pins->d6_pin)) {
-        pinMode(pins->d6_pin, INPUT);
-        Serial.printf("D6 pin configured: GPIO %d\n", pins->d6_pin);
-    }
-    
-    if (is_pin_connected(pins->d7_pin)) {
-        pinMode(pins->d7_pin, INPUT);
-        Serial.printf("D7 pin configured: GPIO %d\n", pins->d7_pin);
-    }
+    // Note: Data pins (D0-D7) are configured by BT656 interface to avoid conflicts
+    // The parallel interface only reads data pins, it doesn't configure them
     
     // Configure control pins as inputs
     if (is_pin_connected(pins->vsync_pin)) {
@@ -86,10 +48,8 @@ static bool init_gpio_pins(const tvp5150_pins_t* pins) {
         Serial.printf("HREF pin configured: GPIO %d\n", pins->href_pin);
     }
     
-    if (is_pin_connected(pins->pclk_pin)) {
-        pinMode(pins->pclk_pin, INPUT);
-        Serial.printf("PCLK pin configured: GPIO %d\n", pins->pclk_pin);
-    }
+    // Note: PCLK pin is configured by BT656 interface to avoid conflicts
+    // The parallel interface only reads PCLK, it doesn't configure it
     
     return true;
 }
@@ -99,6 +59,7 @@ static bool init_gpio_pins(const tvp5150_pins_t* pins) {
 // ============================================================================
 
 // Read 8-bit data from parallel bus
+// Data pins are configured by BT656 interface, but we can still read them
 static uint8_t read_parallel_data(const tvp5150_pins_t* pins) {
     uint8_t data = 0;
     
@@ -130,6 +91,7 @@ static bool read_href(const tvp5150_pins_t* pins) {
 }
 
 static bool read_pclk(const tvp5150_pins_t* pins) {
+    // PCLK pin is configured by BT656 interface, but we can still read it
     if (is_pin_connected(pins->pclk_pin)) {
         return digitalRead(pins->pclk_pin) == HIGH;
     }
@@ -151,7 +113,7 @@ bool tvp5150_parallel_init(const tvp5150_pins_t* pins) {
     // Store pin configuration
     memcpy(&current_pins, pins, sizeof(tvp5150_pins_t));
     
-    // Initialize GPIO pins
+    // Initialize GPIO pins (only VSYNC/HREF - data pins configured by BT656 interface)
     if (!init_gpio_pins(pins)) {
         Serial.println("ERROR: Failed to initialize GPIO pins");
         return false;

@@ -113,6 +113,25 @@ bool tvp5150_is_video_present(void);
 void tvp5150_set_brightness(uint8_t brightness);
 void tvp5150_set_contrast(uint8_t contrast);
 void tvp5150_set_saturation(uint8_t saturation);
+
+// Debug and verification functions
+void tvp5150_print_critical_registers(void);
+bool tvp5150_force_configure_verilog(void);
 bool tvp5150_configure_pal(void);  // Configure for PAL video standard
+
+// Register access functions
+uint8_t tvp5150_read_register(uint8_t reg);
+bool tvp5150_write_register(uint8_t reg, uint8_t data);
+
+// Testing and debugging functions
+bool tvp5150_test_input_selection(uint8_t input_sel);
+bool tvp5150_reset_to_defaults(void);
+
+// Video standard detection and configuration
+bool tvp5150_auto_detect_video_standard(void);
+bool tvp5150_configure_video_standard(bool is_pal);
+
+// Camera connection and signal checking
+void tvp5150_check_camera_connection(void);
 
 #endif 
